@@ -58,3 +58,20 @@ Examples:
 ## Project Objective
 
 To automatically identify non-standard vehicle registration plates and assist authorities in enforcing compliance with registration regulations.
+
+## Screenshots
+
+### Home Page
+![Home Page](screenshots/home_page.png)
+![Home Page2](screenshots/home_page_2.png)
+
+### Valid Plate Detection
+![Valid Plate](screenshots/valid_plate.png)
+
+### Invalid Plate Detection
+![Invalid Plate](screenshots/invalid_plate.png)
+
+### Video Detection
+![Video Detection](screenshots/video_detection.png)
+
+
