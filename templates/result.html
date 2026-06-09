@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ANPR Results — Detection Report</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:        #0A0D14;
+            --surface:   #111827;
+            --surface2:  #1a2235;
+            --border:    rgba(59,130,246,.18);
+            --blue:      #3B82F6;
+            --blue-dark: #1D4ED8;
+            --green:     #10B981;
+            --red:       #EF4444;
+            --yellow:    #F59E0B;
+            --text:      #E2E8F0;
+            --muted:     #64748B;
+            --mono:      'JetBrains Mono', monospace;
+            --sans:      'Poppins', sans-serif;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg); color: var(--text);
+            font-family: var(--sans); min-height: 100vh; overflow-x: hidden;
+        }
+        body::before {
+            content: '';
+            position: fixed; inset: 0;
+            background-image:
+                linear-gradient(rgba(59,130,246,.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(59,130,246,.04) 1px, transparent 1px);
+            background-size: 48px 48px;
+            pointer-events: none; z-index: 0;
+        }
+
+        /* ── NAV ── */
+        nav {
+            position: sticky; top: 0; z-index: 100;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 2rem; height: 64px;
+            background: rgba(10,13,20,.85); backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+        }
+        .nav-brand { display: flex; align-items: center; gap: .75rem; font-weight: 700; font-size: 1rem; letter-spacing: .04em; }
+        .nav-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--blue); box-shadow: 0 0 8px var(--blue); animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+        .nav-badge { font-family: var(--mono); font-size: .65rem; font-weight: 600; background: rgba(59,130,246,.12); border: 1px solid var(--border); color: var(--blue); padding: .25rem .6rem; border-radius: 4px; letter-spacing: .08em; }
+        .nav-back { display: flex; align-items: center; gap: .4rem; font-size: .78rem; color: var(--muted); text-decoration: none; transition: color .2s; }
+        .nav-back:hover { color: var(--blue); }
+        .nav-back svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+        /* ── MAIN ── */
+        main { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 2.5rem 2rem 5rem; }
+
+        /* ── PIPELINE ── */
+        .pipeline-bar {
+            display: flex; align-items: center; justify-content: center;
+            gap: 0; margin-bottom: 2.5rem;
+            flex-wrap: wrap;
+        }
+        .pip-step {
+            display: flex; align-items: center; gap: .45rem;
+            font-size: .68rem; font-family: var(--mono); letter-spacing: .06em; text-transform: uppercase;
+        }
+        .pip-step .pip-dot {
+            width: 22px; height: 22px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: .58rem; font-weight: 700;
+        }
+        .pip-step.done .pip-dot { background: var(--blue); color: #fff; box-shadow: 0 0 10px rgba(59,130,246,.4); }
+        .pip-step.done { color: var(--blue); }
+        .pip-step.idle .pip-dot { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+        .pip-step.idle { color: var(--muted); }
+        .pip-arrow { color: var(--border); padding: 0 .5rem; font-size: .9rem; }
+
+        /* ── PAGE HEADER ── */
+        .page-header { margin-bottom: 2rem; }
+        .page-header h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: .25rem; }
+        .page-header p { font-size: .8rem; color: var(--muted); font-family: var(--mono); }
+
+        /* ── GRID ── */
+        .results-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+        }
+        @media(max-width: 720px) { .results-grid { grid-template-columns: 1fr; } }
+
+        .card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 16px; overflow: hidden;
+        }
+        .card-header {
+            padding: .85rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: .6rem;
+        }
+        .card-header svg { width: 16px; height: 16px; stroke: var(--blue); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+        .card-title { font-size: .78rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; font-family: var(--mono); color: var(--muted); }
+        .card-body { padding: 1.25rem; }
+
+        /* ── MEDIA PREVIEW ── */
+        .media-card { grid-column: 1 / -1; }
+        .media-wrap { border-radius: 10px; overflow: hidden; background: #000; text-align: center; }
+        .media-wrap img, .media-wrap video { max-width: 100%; max-height: 420px; display: block; margin: 0 auto; object-fit: contain; }
+
+        /* ── RESULT ROWS ── */
+        .result-row {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            padding: .65rem 0;
+            border-bottom: 1px solid rgba(59,130,246,.08);
+            gap: 1rem;
+        }
+        .result-row:last-child { border-bottom: none; padding-bottom: 0; }
+        .row-label { font-size: .72rem; font-family: var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; padding-top: .1rem; flex-shrink: 0; }
+        .row-value { font-size: .88rem; font-weight: 500; text-align: right; word-break: break-all; }
+        .row-value.mono { font-family: var(--mono); font-size: .85rem; letter-spacing: .08em; }
+
+        /* ── STATUS BADGE ── */
+        .status-badge {
+            display: inline-flex; align-items: center; gap: .35rem;
+            font-size: .72rem; font-weight: 700; font-family: var(--mono);
+            padding: .3rem .75rem; border-radius: 20px; letter-spacing: .06em;
+        }
+        .status-badge.valid {
+            background: rgba(16,185,129,.15); color: var(--green);
+            border: 1px solid rgba(16,185,129,.3);
+        }
+        .status-badge.invalid {
+            background: rgba(239,68,68,.12); color: var(--red);
+            border: 1px solid rgba(239,68,68,.25);
+        }
+        .status-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+        /* ── CONFIDENCE BAR ── */
+        .conf-wrap { display: flex; flex-direction: column; gap: .4rem; }
+        .conf-bar-bg { height: 6px; border-radius: 3px; background: var(--surface2); overflow: hidden; }
+        .conf-bar-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--blue-dark), var(--blue)); transition: width .6s ease; }
+        .conf-label { font-family: var(--mono); font-size: .78rem; color: var(--text); font-weight: 600; }
+
+        /* ── NOTIFICATION ── */
+        .notif-card .card-body { padding: 1.25rem; }
+        .notif-banner {
+            border-radius: 10px; padding: 1rem 1.25rem;
+            display: flex; align-items: flex-start; gap: .75rem;
+        }
+        .notif-banner.ok { background: rgba(16,185,129,.08); border: 1px solid rgba(16,185,129,.2); }
+        .notif-banner.alert { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2); }
+        .notif-icon { font-size: 1.25rem; flex-shrink: 0; line-height: 1; }
+        .notif-title { font-size: .85rem; font-weight: 600; margin-bottom: .2rem; }
+        .notif-sub { font-size: .75rem; color: var(--muted); line-height: 1.5; }
+        .notif-banner.ok .notif-title { color: var(--green); }
+        .notif-banner.alert .notif-title { color: var(--red); }
+
+        /* ── CROP CARD ── */
+        .crop-wrap { border-radius: 8px; overflow: hidden; background: #000; text-align: center; }
+        .crop-wrap img { max-width: 100%; max-height: 160px; object-fit: contain; display: block; margin: 0 auto; }
+
+        /* ── MULTI RESULT SEPARATOR ── */
+        .result-block + .result-block { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
+
+        /* ── UPLOAD ANOTHER ── */
+        .bottom-bar { margin-top: 2rem; text-align: center; }
+        .btn-outline {
+            display: inline-flex; align-items: center; gap: .5rem;
+            border: 1px solid var(--border); background: transparent;
+            color: var(--text); font-family: var(--sans); font-size: .85rem; font-weight: 500;
+            padding: .65rem 1.5rem; border-radius: 10px; text-decoration: none;
+            transition: all .2s; cursor: pointer;
+        }
+        .btn-outline:hover { border-color: var(--blue); color: var(--blue); background: rgba(59,130,246,.06); }
+        .btn-outline svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+        /* ── FOOTER ── */
+        footer {
+            position: relative; z-index: 1; text-align: center; padding: 2rem;
+            border-top: 1px solid var(--border);
+            font-size: .72rem; color: var(--muted); font-family: var(--mono);
+        }
+
+        @media(max-width:600px){
+            main { padding: 1.5rem 1rem 4rem; }
+            .pip-arrow { padding: 0 .25rem; }
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="nav-brand">
+        <div class="nav-dot"></div>
+        ANPR System
+    </div>
+    <a href="/" class="nav-back">
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+        New Upload
+    </a>
+</nav>
+
+<main>
+
+    <!-- PIPELINE -->
+    <div class="pipeline-bar">
+        <div class="pip-step done"><div class="pip-dot">✓</div> Upload</div>
+        <div class="pip-arrow">›</div>
+        <div class="pip-step done"><div class="pip-dot">✓</div> Detect</div>
+        <div class="pip-arrow">›</div>
+        <div class="pip-step done"><div class="pip-dot">✓</div> OCR</div>
+        <div class="pip-arrow">›</div>
+        <div class="pip-step done"><div class="pip-dot">✓</div> Validate</div>
+        <div class="pip-arrow">›</div>
+        <div class="pip-step done"><div class="pip-dot">✓</div> Notify</div>
+    </div>
+
+    <div class="page-header">
+        <h2>Detection Report</h2>
+        <p>{{ results|length }} plate(s) detected &nbsp;·&nbsp; {{ image_path }}</p>
+    </div>
+
+    <div class="results-grid">
+
+        <!-- UPLOADED FILE -->
+        <div class="card media-card">
+            <div class="card-header">
+                <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                <span class="card-title">Uploaded File</span>
+            </div>
+            <div class="card-body">
+                <div class="media-wrap">
+                    {% if image_path.endswith('.mp4') or image_path.endswith('.avi') or image_path.endswith('.mov') %}
+                    <video controls>
+                        <source src="/{{ image_path }}">
+                    </video>
+                    {% else %}
+                    <img src="/{{ image_path }}" alt="Uploaded image">
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {% for result in results %}
+
+        <!-- DETECTION INFO -->
+        <div class="card">
+            <div class="card-header">
+                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <span class="card-title">Detection · Plate {{ loop.index }}</span>
+            </div>
+            <div class="card-body">
+                <div class="result-row">
+                    <span class="row-label">Detected Reg.</span>
+                    <span class="row-value mono">{{ result.plate }}</span>
+                </div>
+                <div class="result-row">
+                    <span class="row-label">OCR Text</span>
+                    <span class="row-value mono">{{ result.full_text }}</span>
+                </div>
+                <div class="result-row">
+                    <span class="row-label">Confidence</span>
+                    <div class="conf-wrap" style="flex:1; max-width:55%">
+                        <div class="conf-bar-bg">
+                            <div class="conf-bar-fill" id="conf-bar-{{ loop.index }}" style="width:0%"></div>
+                        </div>
+                        <span class="conf-label" id="conf-label-{{ loop.index }}">{{ result.confidence }}</span>
+                    </div>
+                </div>
+                <div class="result-row">
+                    <span class="row-label">Status</span>
+                    {% if result.valid is none %}
+
+                    <span class="status-badge"
+                        style="background:rgba(100,116,139,.15);
+                                color:#94A3B8;
+                                border:1px solid rgba(100,116,139,.3);">
+                        N/A
+                    </span>
+
+                    {% elif result.valid %}
+
+                    <span class="status-badge valid">
+                        VALID
+                    </span>
+
+                    {% else %}
+
+                    <span class="status-badge invalid">
+                        INVALID
+                    </span>
+
+                    {% endif %}
+                </div>
+                <div class="result-row">
+                    <span class="row-label">Reason</span>
+                    <span class="row-value" style="font-size:.78rem;color:var(--muted)">{{ result.reason }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- NOTIFICATION -->
+        <div class="card notif-card">
+            <div class="card-header">
+                <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 015.12 12.63 19.79 19.79 0 012.05 4a2 2 0 012-2H7a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+                <span class="card-title">Notification Status</span>
+            </div>
+            <div class="card-body">
+                {% if result.email_sent %}
+                <div class="notif-banner alert">
+                    <div class="notif-icon">⚠️</div>
+                    <div>
+                        <div class="notif-title">Authority notified via email</div>
+                        <div class="notif-sub">
+                            Non-standard plate detected.
+                            Violation report has been dispatched to the registered authority.
+                        </div>
+                    </div>
+                </div>
+
+                {% else %}
+
+                <div class="notif-banner ok">
+                    <div class="notif-icon">✅</div>
+                    <div>
+                        <div class="notif-title">No authority notification required</div>
+                        <div class="notif-sub">
+                            No actionable violation was detected.
+                        </div>
+                    </div>
+                </div>
+
+                {% endif %}
+
+                {% if result.crop_path %}
+                <div style="margin-top:1rem">
+                    <div style="font-size:.68rem;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.6rem;">Cropped Plate</div>
+                    <div class="crop-wrap">
+                        <img src="/outputs/{{ result.crop_path }}" alt="Cropped plate">
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% endfor %}
+
+    </div><!-- /grid -->
+
+    <div class="bottom-bar">
+        <a href="/" class="btn-outline">
+            <svg viewBox="0 0 24 24"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>
+            Upload Another File
+        </a>
+    </div>
+
+</main>
+
+<footer>
+    ANPR · YOLOv8 · Final Year Project &nbsp;·&nbsp; Computer Science &amp; Engineering
+</footer>
+
+<script>
+    // Animate confidence bars
+    document.querySelectorAll('[id^="conf-bar-"]').forEach((bar, i) => {
+        const labelEl = document.getElementById('conf-label-' + (i + 1));
+        if (!labelEl) return;
+        const rawText = labelEl.textContent.trim();
+        let pct = parseFloat(rawText);
+        if (!isNaN(pct)) {
+            // If given as 0-1 float, convert; if >1 assume percentage
+            if (pct <= 1) pct = pct * 100;
+            pct = Math.min(100, Math.max(0, pct));
+            setTimeout(() => { bar.style.width = pct.toFixed(1) + '%'; }, 200);
+        }
+    });
+</script>
+
+</body>
+</html>
